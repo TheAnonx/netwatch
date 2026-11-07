@@ -7,7 +7,7 @@ O NetWatch é um inventário **de sockets Linux**, não um capturador de pacotes
 | Modo | Endereço | Origem da telemetria | Capacidades |
 | --- | --- | --- | --- |
 | Local | `http://127.0.0.1:9876` | `server.py` na própria máquina | Leitura e encerramento controlado de processos |
-| GitHub Pages (padrão) | `https://CONTA.github.io/REPOSITORIO/` | `demo.js` determinístico | Navegação, filtros, gráficos e exportação de **dados fictícios** |
+| GitHub Pages (padrão) | `https://theanonx.github.io/netwatch/` | `demo.js` determinístico | Navegação, filtros, gráficos e exportação de **dados fictícios** |
 | GitHub Pages pareado | mesmo endereço HTTPS | `http://127.0.0.1:9876/api/connections` via CORS autorizado | **Somente leitura** de sockets da máquina local, mediante clique e segredo |
 
 O Pages hospeda **somente arquivos estáticos**. Python e `ss` nunca são executados no GitHub. Não existe proxy, túnel para a nuvem, banco externo nem entrega de telemetria à infraestrutura GitHub pelo código de backend.
@@ -22,7 +22,7 @@ O Pages hospeda **somente arquivos estáticos**. Python e `ss` nunca são execut
                         |
                         v
    GET http://127.0.0.1:9876/api/connections
-       Origin: https://CONTA.github.io
+       Origin: https://theanonx.github.io
        X-NetWatch-Read-Token: segredo efêmero
                         |
                         v
@@ -47,7 +47,7 @@ O JavaScript hospedado no Pages executa no navegador do visitante. A conexão re
 - O preflight do navegador permite somente `GET` em `/api/connections` e `/api/interfaces` e somente o header `X-NetWatch-Read-Token` para a origem configurada.
 - O endpoint `/api/kill` continua exclusivo da interface local. Exige origem local, token CSRF distinto, UID e identidade de PID (`start_ticks`/pidfd).
 - O Pages **não recebe** dados de linha de comando, caminho do executável, nome de usuário, DNS reverso e owners detalhados. IPs, PIDs e nomes de processos ainda podem ser sensíveis — a ativação é voluntária.
-- O Pages não é uma fronteira de confiança criptograficamente independente do domínio. Em `CONTA.github.io`, outros repositórios da mesma conta compartilham a mesma origem. Para dados sensíveis, use domínio isolado dedicado ao NetWatch e não conecte a cópias desconhecidas.
+- O Pages não é uma fronteira de confiança criptograficamente independente do domínio. Em `theanonx.github.io`, outros repositórios da mesma conta compartilham a mesma origem. Para dados sensíveis, use domínio isolado dedicado ao NetWatch e não conecte a cópias desconhecidas.
 - Sem pareamento, a interface mostra apenas dados RFC 5737 reservados a documentação, sempre marcados como fictícios.
 
 ## Backend (`server.py` e `telemetry_collector.py`)

@@ -42,13 +42,13 @@ Taxas RX/TX: se ainda não há histórico, o worker pode estar formando as prime
 3. O coletor precisa ter sido iniciado com **a origem HTTPS exata**:
 ```bash
 bash ./stop.sh
-NETWATCH_PAGES_ORIGIN=https://SEU_USUARIO.github.io bash ./start.sh
+NETWATCH_PAGES_ORIGIN=https://theanonx.github.io bash ./start.sh
 ```
 4. Clique em **Fonte** no cabeçalho, leia o código em `.netwatch-pages-token` e cole no campo **Código do coletor**. Não compartilhe o valor.
 5. Clique em **Conectar meu computador**. No Chrome moderno, permita a requisição de acesso à rede **loopback/local** quando o navegador perguntar.
 6. Se houver `TypeError: Failed to fetch`/CORS, confirme a origem, token, políticas do navegador e ausência de HTTPS bloqueado. Use DevTools → Network para verificar o preflight `OPTIONS`. Nunca sugira `--disable-web-security`, extensões de bypass de CORS ou a abertura de firewall.
 7. Se reiniciar o coletor, obtenha o **novo código** e repita a conexão.
-8. Se o site foi publicado em `https://SEU_USUARIO.github.io/netwatch/`, a variável usa **somente** `https://SEU_USUARIO.github.io`.
+8. Se o site foi publicado em `https://theanonx.github.io/netwatch/`, a variável usa **somente** `https://theanonx.github.io`.
 
 Se o navegador não implementar Local Network Access, a prévia fictícia continua funcional; conexão externa pode não ser possível naquele navegador. Confira [documentação Chrome](https://developer.chrome.com/docs/modern-web-guidance/guides/security/local-network-access).
 

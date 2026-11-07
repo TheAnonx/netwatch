@@ -30,7 +30,7 @@ O resultado `dist/pages` não contém Python, caches, logs, código de pareament
 3. No projeto local, inspecione seus remotes, então adicione **somente se faltar**:
 ```bash
 git remote -v
-git remote add origin https://github.com/SEU_USUARIO/netwatch.git
+git remote add origin https://github.com/TheAnonx/netwatch.git
 ```
 4. Confira as revisões privada e pública **sem trocar a sua branch atual**:
 ```bash
@@ -70,7 +70,7 @@ No repositório, abra **Settings → Pages → Build and deployment → Source: 
 3. Valida ausência de dados privados com `scripts/check_release.py`.
 4. Publica **somente** `dist/pages` via `actions/upload-pages-artifact` e `actions/deploy-pages`.
 
-O resultado padrão fica em `https://SEU_USUARIO.github.io/netwatch/`. Esse URL só existirá depois de criar repositório, habilitar Pages e concluir a action.
+O resultado padrão fica em `https://theanonx.github.io/netwatch/`. Esse URL só existirá depois de criar repositório, habilitar Pages e concluir a action.
 
 Para proteger releases, configure proteção do environment `github-pages`, review obrigatório de pull requests e branch protection em `main`. O workflow usa permissões mínimas para leitura de código e publicação de Pages.
 

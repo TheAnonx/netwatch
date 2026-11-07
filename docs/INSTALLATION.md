@@ -29,8 +29,8 @@ Sem `sudo` para executar o NetWatch; privilégios maiores não são necessários
 ## Instalar e executar localmente
 
 ```bash
-git clone https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git
-cd SEU_REPOSITORIO
+git clone https://github.com/TheAnonx/netwatch.git
+cd netwatch
 bash ./start.sh
 ```
 
@@ -45,16 +45,16 @@ O controlador só encerra um PID cuja identidade confirme o `server.py` desta in
 
 ## Usar somente a prévia pública
 
-Acesse `https://SEU_USUARIO.github.io/SEU_REPOSITORIO/`. Sem instalar nada, os filtros, o gráfico, o inspetor e os exemplos funcionam **com dados fictícios**, identificados de maneira permanente. A página não identifica processos nem sockets reais sem um serviço Linux local.
+Acesse `https://theanonx.github.io/netwatch/`. Sem instalar nada, os filtros, o gráfico, o inspetor e os exemplos funcionam **com dados fictícios**, identificados de maneira permanente. A página não identifica processos nem sockets reais sem um serviço Linux local.
 
 ## Habilitar coleta real na página GitHub Pages
 
 1. Publique primeiro o site conforme [RELEASE.md](RELEASE.md), determinando o domínio HTTPS real.
 2. No computador Linux do visitante, execute:
 ```bash
-cd SEU_REPOSITORIO
+cd netwatch
 bash ./stop.sh
-NETWATCH_PAGES_ORIGIN=https://SEU_USUARIO.github.io bash ./start.sh
+NETWATCH_PAGES_ORIGIN=https://theanonx.github.io bash ./start.sh
 ```
 3. Leia o segredo **localmente** (não envie por email, commit, issue, print ou chat público):
 ```bash
@@ -64,7 +64,7 @@ cat .netwatch-pages-token
 5. Se o Chrome solicitar permissão de acesso à rede local/loopback, permita somente se confiar no domínio e no código publicado.
 6. A página muda de demonstração para leitura real. Clique em **Desconectar e mostrar demonstração** para apagar o segredo da memória da aba e retornar ao preview.
 
-**A variável recebe somente a origem HTTPS** (sem `/REPOSITORIO`): `https://SEU_USUARIO.github.io`. Se usar um domínio personalizado, informe a origem HTTPS dele. Reinicie o serviço sempre que mudar essa configuração. O token gira a cada start e deixa de funcionar depois de um restart.
+**A variável recebe somente a origem HTTPS** (sem `/netwatch`): `https://theanonx.github.io`. Se usar um domínio personalizado, informe a origem HTTPS dele. Reinicie o serviço sempre que mudar essa configuração. O token gira a cada start e deixa de funcionar depois de um restart.
 
 Para desligar o acesso ao GitHub Pages, reinicie **sem** `NETWATCH_PAGES_ORIGIN`:
 ```bash
@@ -84,7 +84,7 @@ NETWATCH_GEO_PROVIDER=ipwhois bash ./start.sh
 Para combinar GeoIP e Pages:
 ```bash
 bash ./stop.sh
-NETWATCH_GEO_PROVIDER=ipwhois NETWATCH_PAGES_ORIGIN=https://SEU_USUARIO.github.io bash ./start.sh
+NETWATCH_GEO_PROVIDER=ipwhois NETWATCH_PAGES_ORIGIN=https://theanonx.github.io bash ./start.sh
 ```
 
 Ao ativar o GeoIP, endereços IP públicos poderão ser enviados ao provedor ipwho.is. Consulte a política de privacidade do provedor antes de usar.

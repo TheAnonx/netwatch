@@ -62,7 +62,7 @@ Instalação de dependências por distribuição, permissões e diagnóstico: **
 Depois que o mantenedor publicar o site, a prévia estará em um endereço como:
 
 ```text
-https://SEU_USUARIO.github.io/netwatch/
+https://theanonx.github.io/netwatch/
 ```
 
 Esse endereço é **ilustrativo até a publicação**. Você pode explorar os gráficos, filtros e o inspetor sem instalar nada: todos os dados são simulados e identificados como tal.
@@ -73,7 +73,7 @@ Para trocar os dados fictícios por dados reais, inicie o coletor Linux autoriza
 
 ```bash
 bash ./stop.sh
-NETWATCH_PAGES_ORIGIN=https://SEU_USUARIO.github.io bash ./start.sh
+NETWATCH_PAGES_ORIGIN=https://theanonx.github.io bash ./start.sh
 cat .netwatch-pages-token
 ```
 
