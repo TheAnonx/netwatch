@@ -60,7 +60,7 @@ NETWATCH_PAGES_ORIGIN=https://SEU_USUARIO.github.io bash ./start.sh
 ```bash
 cat .netwatch-pages-token
 ```
-4. No GitHub Pages, cole o código no campo **Código de pareamento do coletor** e clique em **Conectar meu computador**.
+4. No GitHub Pages, clique em **Fonte** no cabeçalho para abrir o menu. Cole o código no campo **Código do coletor** e clique em **Conectar meu computador**. Clique em **Fonte** novamente, fora do menu ou pressione **Esc** para fechá-lo.
 5. Se o Chrome solicitar permissão de acesso à rede local/loopback, permita somente se confiar no domínio e no código publicado.
 6. A página muda de demonstração para leitura real. Clique em **Desconectar e mostrar demonstração** para apagar o segredo da memória da aba e retornar ao preview.
 

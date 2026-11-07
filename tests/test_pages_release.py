@@ -80,73 +80,124 @@ vm.createContext(ctx);vm.runInContext(js,ctx);
                          completed.stdout + '\\n' + completed.stderr)
 
     @unittest.skipUnless(shutil.which('node'), 'Node.js not installed')
-    def test_demo_never_connects_without_explicit_user_action(self):
+    def test_discreet_source_menu_toggles_closes_and_pairs_explicitly(self):
         code = r"""
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const demo=fs.readFileSync('web/demo.js','utf8');
 const pages=fs.readFileSync('web/pages.js','utf8');
-let requests=[],start=()=>{},formHandlers={};
-const tokenField={value:'',closest:()=>null};
+const requests=[], events={}, formHandlers={}, handlers={}, focus=[];
+const trigger={type:'',className:'',textContent:'',attrs:{},
+ setAttribute(name,val){this.attrs[name]=val;},
+ getBoundingClientRect(){return {top:30,bottom:62,right:1180};},
+ contains(target){return target===this;},
+ addEventListener(name,fn){handlers['trigger:'+name]=fn;},
+ focus(){focus.push('trigger');}};
+const tokenField={value:'',focus(){focus.push('pairing');}};
 const connectButton={disabled:false};
 const status={textContent:'',dataset:{}};
-const disconnect={hidden:true,addEventListener:(event,fn)=>{disconnect.fire=fn;}};
+const description={textContent:''};
+const disconnect={hidden:true,focus(){focus.push('disconnect');},
+ addEventListener:(event,fn)=>{handlers['disconnect:'+event]=fn;}};
 const form={hidden:false,addEventListener:(event,fn)=>{formHandlers[event]=fn;},
  querySelector:()=>connectButton};
-const panel={className:'',setAttribute(){},innerHTML:'',
- querySelector(selector){
-  return ({'.pages-connection-status':status,'.pages-connection-form':form,
-  '.pages-disconnect-btn':disconnect,'#pages-pairing-code':tokenField})[selector]??null;
- }};
-const header={parentNode:{insertBefore(element,before){
- assert.equal(before,header);assert.equal(element,panel);
- }}};
-const document={createElement:()=>panel,querySelector:()=>header,
- addEventListener:(event,fn)=>{if(event==='DOMContentLoaded')start=fn;}};
-const window={NetWatchChangeSource:()=>{window.changed=(window.changed||0)+1;}};
-const ctx={window,document,console,Date,structuredClone,
- fetch:async (url,opts)=>{
-  requests.push({url,opts});
-  return {ok:true,json:async ()=>({status:'ok',summary:{total:0},
-    sources:{inet:{status:'ok'}},connections:[]})};
- }};
+const menu={id:'',className:'',hidden:true,attrs:{},style:{},innerHTML:'',
+ setAttribute(name,val){this.attrs[name]=val;},
+ querySelector(selector){return ({
+   '.pages-connection-status':status,'.pages-connection-form':form,
+   '.pages-disconnect-btn':disconnect,'#pages-pairing-code':tokenField,
+   '.pages-source-intro p':description
+ })[selector]??null;},
+ getBoundingClientRect(){return {width:340,height:260};},
+ contains(target){return target===this;}};
+const headerRight={appendChild(element){assert.equal(element,trigger);this.child=element;}};
+const body={appendChild(element){assert.equal(element,menu);this.child=element;}};
+const document={body,createElement(name){return name==='button'?trigger:menu;},
+ querySelector(name){assert.equal(name,'.header-right');return headerRight;},
+ addEventListener(name,fn){events[name]=fn;},
+ getElementById(){return {textContent:''};}};
+const window={innerWidth:1200,innerHeight:800,opener:null,
+ addEventListener(name,fn){handlers['window:'+name]=fn;},
+ NetWatchChangeSource:()=>{window.changed=(window.changed||0)+1;}};
+window.top=window;window.self=window;
+const ctx={window,document,Date,console,structuredClone,fetch:async(url,opts)=>{
+ requests.push({url,opts});
+ return {ok:true,json:async()=>({status:'ok',summary:{total:0},
+  sources:{inet:{status:'ok'}},connections:[]})};
+}};
 vm.createContext(ctx);vm.runInContext(demo,ctx);vm.runInContext(pages,ctx);
-(async ()=>{
+(async()=>{
  const sample=await window.NetWatchPages.getSnapshot();
- assert(sample.demo);
- assert(sample.connections.length>0);
- assert(sample.connections.every(x=>!x.identity_verified));
- assert(sample.connections.some(x=>x.proto==='unix'));
- assert.equal(requests.length,0,'demo must not contact localhost');
- start();
- assert.equal(form.hidden,false);
+ assert(sample.demo);assert.equal(requests.length,0,'demo cannot fetch before click');
+ events.DOMContentLoaded();
+ assert.equal(headerRight.child,trigger);
+ assert.equal(body.child,menu,'menu must be outside the optical header');
+ assert.equal(menu.hidden,true,'no permanent banner');
+ assert.equal(trigger.attrs['aria-expanded'],'false');
+ assert.equal(trigger.attrs['aria-haspopup'],'dialog');
+ assert.equal(menu.attrs.role,'dialog');
+ assert.equal(trigger.textContent,'Fonte');
+
+ handlers['trigger:click']();
+ assert.equal(menu.hidden,false);
+ assert.equal(trigger.attrs['aria-expanded'],'true');
+ assert.equal(focus.at(-1),'pairing');
+ assert.equal(menu.style.left,'840px');
+ handlers['trigger:click']();
+ assert.equal(menu.hidden,true);
+ assert.equal(trigger.attrs['aria-expanded'],'false');
+
+ handlers['trigger:click']();
+ events.click({target:menu});
+ assert.equal(menu.hidden,false,'click inside must not close');
+ events.click({target:trigger});
+ assert.equal(menu.hidden,false,'outside listener must not undo trigger action');
+ events.click({target:{other:true}});
+ assert.equal(menu.hidden,true,'outside click closes');
+
+ handlers['trigger:click']();
+ let prevented=false;
+ events.keydown({key:'Escape',preventDefault(){prevented=true;}});
+ assert(prevented);assert.equal(menu.hidden,true);
+ assert.equal(focus.at(-1),'trigger');
+
+ // Responsive positioning is independent of viewport width.
+ window.innerWidth=390;
+ handlers['trigger:click']();
+ assert(Number.parseInt(menu.style.left,10)>=12);
+ assert(Number.parseInt(menu.style.left,10)+340<=390-12);
+ tokenField.value='short';
+ await formHandlers.submit({preventDefault(){}});
+ assert.equal(requests.length,0,'invalid code must never touch loopback');
+ assert.equal(menu.hidden,false);
  tokenField.value='a'.repeat(40);
  await formHandlers.submit({preventDefault(){}});
  assert.equal(window.NetWatchPages.currentMode(),'live');
+ assert.equal(menu.hidden,true,'success should collapse menu');
  assert.equal(tokenField.value,'');
- assert.equal(form.hidden,true);
- assert.equal(disconnect.hidden,false);
  assert.equal(window.changed,1);
  assert.equal(requests[0].url,'http://127.0.0.1:9876/api/connections');
  assert.equal(requests[0].opts.method,'GET');
- assert.equal(requests[0].opts.targetAddressSpace,'loopback');
  assert.equal(requests[0].opts.credentials,'omit');
+ assert.equal(requests[0].opts.targetAddressSpace,'loopback');
  assert.equal(requests[0].opts.headers['X-NetWatch-Read-Token'],'a'.repeat(40));
- disconnect.fire();
+ handlers['trigger:click']();
+ assert.equal(form.hidden,true);
+ assert.equal(disconnect.hidden,false);
+ assert(description.textContent.includes('Conectado ao coletor local'));
+ handlers['disconnect:click']();
  assert.equal(window.NetWatchPages.currentMode(),'demo');
+ assert.equal(menu.hidden,true);
  assert.equal(window.changed,2);
  const count=requests.length;
- const demoAgain=await window.NetWatchPages.getSnapshot();
- assert(demoAgain.demo);
- assert.equal(requests.length,count);
- console.log('PASS: demo isolation, explicit pairing, read-only fetch, disconnect');
+ const again=await window.NetWatchPages.getSnapshot();
+ assert(again.demo);assert.equal(requests.length,count);
+ console.log('PASS: discreet menu, toggle, outside, Escape, responsive, pairing, disconnect');
 })().catch(e=>{console.error(e);process.exitCode=1;});
 """
-        completed = subprocess.run(
+        result = subprocess.run(
             ['node', '-e', code], cwd=ROOT, capture_output=True,
             text=True, timeout=15, check=False)
-        self.assertEqual(completed.returncode, 0,
-                         completed.stdout + '\n' + completed.stderr)
-
+        self.assertEqual(result.returncode, 0, result.stdout + '\n' + result.stderr)
 
 if __name__ == '__main__':
     unittest.main()

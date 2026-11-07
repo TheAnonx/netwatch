@@ -1,11 +1,8 @@
-/* GitHub Pages mode: demo by default; optional, explicit read-only local connection.
- * The pairing code exists only in this page's memory and is never persisted,
- * included in URLs or sent to GitHub Pages.
- */
+/* GitHub Pages: demo by default. Local pairing is explicit, memory-only and read-only. */
 (() => {
   'use strict';
-  // A public site on a shared origin must not be remotely controlled through
-  // an iframe or opener window. Embedded views remain demonstration-only.
+
+  // Embedded or opener-controlled Pages views never request local-network access.
   if (('top' in window && window.top !== window.self) || window.opener != null) {
     window.NetWatchPages = Object.freeze({
       getSnapshot: () => Promise.resolve(window.NetWatchDemo.snapshot()),
@@ -15,14 +12,9 @@
       },
       currentMode: () => 'demo'
     });
-    document.addEventListener('DOMContentLoaded', () => {
-      const message = document.createElement('p');
-      message.className = 'pages-embedded-warning';
-      message.textContent = 'Prévia demonstrativa: a conexão local está desativada em páginas incorporadas ou abertas por outro site.';
-      document.querySelector('.app-header')?.before(message);
-    });
     return;
   }
+
   const LOCAL_API = 'http://127.0.0.1:9876';
   let activeToken = '';
   let mode = 'demo';
@@ -30,6 +22,7 @@
   let connectForm;
   let disconnectButton;
   let pairingInput;
+  let introDescription;
 
   function fetchLocal(token) {
     return fetch(LOCAL_API + '/api/connections', {
@@ -39,7 +32,6 @@
       cache: 'no-store',
       redirect: 'error',
       referrerPolicy: 'no-referrer',
-      // Chrome's Local Network Access prompt is allowed only after user gesture.
       targetAddressSpace: 'loopback',
       headers: { 'X-NetWatch-Read-Token': token }
     }).then(async response => {
@@ -62,6 +54,9 @@
   function updateControls() {
     connectForm.hidden = mode === 'live';
     disconnectButton.hidden = mode !== 'live';
+    if (introDescription) introDescription.textContent = mode === 'live'
+      ? 'Conectado ao coletor local, em modo somente leitura.'
+      : 'Esta é uma demonstração com dados fictícios. Conecte o coletor Linux local para ver sua máquina.';
   }
 
   function updateLiveIndicator(collectionStatus = 'ok') {
@@ -71,75 +66,136 @@
     else if (collectionStatus !== 'partial') label.textContent = 'Ao vivo';
   }
 
-  const source = {
+  window.NetWatchPages = Object.freeze({
     getSnapshot() {
-      if (mode === 'live') return fetchLocal(activeToken);
-      return Promise.resolve(window.NetWatchDemo.snapshot());
+      return mode === 'live'
+        ? fetchLocal(activeToken)
+        : Promise.resolve(window.NetWatchDemo.snapshot());
     },
     decorateStatus: updateLiveIndicator,
     currentMode: () => mode
-  };
-  Object.freeze(source);
-  window.NetWatchPages = source;
+  });
 
   document.addEventListener('DOMContentLoaded', () => {
-    const panel = document.createElement('section');
-    panel.className = 'pages-connection';
-    panel.setAttribute('aria-label', 'Origem da telemetria');
-    panel.innerHTML = `
-      <div class="pages-connection-copy">
-        <strong>Prévia demonstrativa</strong>
-        <p>Dados fictícios. Nenhuma informação da sua máquina é coletada
-        até você conectar um coletor local.</p>
+    const headerRight = document.querySelector('.header-right');
+    if (!headerRight) return;
+
+    // One small entry point; the floating menu is outside the optical header's
+    // overflow:hidden, so it cannot be clipped by the Liquid Glass compositor.
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'pages-source-trigger';
+    trigger.textContent = 'Fonte';
+    trigger.setAttribute('aria-haspopup', 'dialog');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-controls', 'pages-source-menu');
+    trigger.setAttribute('aria-label', 'Fonte dos dados: abrir opções de conexão');
+    headerRight.appendChild(trigger);
+
+    const menu = document.createElement('section');
+    menu.id = 'pages-source-menu';
+    menu.className = 'pages-source-menu';
+    menu.hidden = true;
+    menu.setAttribute('role', 'dialog');
+    menu.setAttribute('aria-modal', 'false');
+    menu.setAttribute('aria-label', 'Origem da telemetria');
+    menu.innerHTML = `
+      <div class="pages-source-intro">
+        <strong>Fonte dos dados</strong>
+        <p>Esta é uma demonstração com dados fictícios. Conecte o coletor Linux local para ver sua máquina.</p>
       </div>
       <form class="pages-connection-form" autocomplete="off">
-        <label for="pages-pairing-code">Código de pareamento do coletor</label>
-        <div class="pages-connection-actions">
-          <input id="pages-pairing-code" type="password" name="pairing"
-            autocomplete="off" autocapitalize="off" spellcheck="false"
-            placeholder="Cole o código local" aria-describedby="pages-pairing-help"
-            maxlength="512" required>
-          <button type="submit" class="pages-connect-btn">Conectar meu computador</button>
-        </div>
-        <small id="pages-pairing-help">Necessário executar o NetWatch localmente.
-        A conexão é somente leitura e pode solicitar permissão de rede local do navegador.</small>
+        <label for="pages-pairing-code">Código do coletor</label>
+        <input id="pages-pairing-code" type="password" name="pairing"
+          autocomplete="off" autocapitalize="off" spellcheck="false"
+          placeholder="Cole o código local" aria-describedby="pages-pairing-help"
+          maxlength="512" required>
+        <small id="pages-pairing-help">Conexão somente leitura; o navegador pode solicitar permissão de rede local.</small>
+        <button type="submit" class="pages-connect-btn">Conectar meu computador</button>
       </form>
-      <button class="pages-disconnect-btn" type="button" hidden>
-        Desconectar e mostrar demonstração
-      </button>
+      <button class="pages-disconnect-btn" type="button" hidden>Desconectar e usar demonstração</button>
       <p class="pages-connection-status" role="status" aria-live="polite"></p>
     `;
-    const header = document.querySelector('.app-header');
-    header.parentNode.insertBefore(panel, header);
+    document.body.appendChild(menu);
 
-    statusElement = panel.querySelector('.pages-connection-status');
-    connectForm = panel.querySelector('.pages-connection-form');
-    disconnectButton = panel.querySelector('.pages-disconnect-btn');
-    pairingInput = panel.querySelector('#pages-pairing-code');
-    message('Demonstração: todas as conexões e taxas são fictícias.');
+    statusElement = menu.querySelector('.pages-connection-status');
+    connectForm = menu.querySelector('.pages-connection-form');
+    disconnectButton = menu.querySelector('.pages-disconnect-btn');
+    pairingInput = menu.querySelector('#pages-pairing-code');
+    introDescription = menu.querySelector('.pages-source-intro p');
     updateControls();
+
+    function positionMenu() {
+      if (menu.hidden) return;
+      const anchor = trigger.getBoundingClientRect();
+      const width = menu.getBoundingClientRect().width;
+      const height = menu.getBoundingClientRect().height;
+      const gap = 8;
+      const left = Math.max(12, Math.min(anchor.right - width, window.innerWidth - width - 12));
+      const below = anchor.bottom + gap;
+      const top = below + height > window.innerHeight - 12 && anchor.top >= height + gap
+        ? anchor.top - height - gap
+        : below;
+      menu.style.left = left + 'px';
+      menu.style.top = Math.max(12, top) + 'px';
+    }
+
+    function closeMenu(restoreFocus = false) {
+      if (menu.hidden) return;
+      menu.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      pairingInput.value = '';
+      if (restoreFocus) trigger.focus();
+    }
+
+    function openMenu() {
+      updateControls();
+      menu.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+      positionMenu();
+      (mode === 'live' ? disconnectButton : pairingInput).focus({ preventScroll: true });
+    }
+
+    trigger.addEventListener('click', () => {
+      if (menu.hidden) openMenu();
+      else closeMenu();
+    });
+    document.addEventListener('click', event => {
+      if (!menu.hidden && !menu.contains(event.target) && !trigger.contains(event.target)) {
+        closeMenu();
+      }
+    });
+    document.addEventListener('keydown', event => {
+      if (!menu.hidden && event.key === 'Escape') {
+        event.preventDefault();
+        closeMenu(true);
+      }
+    });
+    window.addEventListener('resize', positionMenu);
+    window.addEventListener('scroll', positionMenu, { passive: true });
 
     connectForm.addEventListener('submit', async event => {
       event.preventDefault();
       const secret = pairingInput.value.trim();
       if (secret.length < 32 || secret.length > 512) {
-        message('Código inválido. Consulte o arquivo de pareamento gerado pelo coletor.', 'error');
+        message('Código inválido. Consulte o arquivo de pareamento do coletor.', 'error');
         return;
       }
       const button = connectForm.querySelector('button[type="submit"]');
       button.disabled = true;
-      message('Solicitando acesso ao coletor local. Confirme a permissão do navegador, se necessário.');
+      message('Solicitando acesso ao coletor local. Autorize a rede local se solicitado.');
       try {
-        // Only an explicit click may trigger Chrome's loopback permission prompt.
+        // A local-network prompt can only follow an explicit visitor action.
         await fetchLocal(secret);
         activeToken = secret;
         pairingInput.value = '';
         mode = 'live';
         updateControls();
-        message('Conectado ao seu computador. Os dados são lidos diretamente do loopback.', 'success');
+        message('Conectado. Os dados são lidos diretamente do seu computador.', 'success');
+        closeMenu();
         window.NetWatchChangeSource?.();
       } catch (error) {
-        message('Não foi possível conectar. Verifique o coletor, o código, a origem autorizada e a permissão de rede local. ' +
+        message('Não foi possível conectar. Confira o coletor, o código e a permissão de rede local. ' +
           String(error.message || ''), 'error');
       } finally {
         button.disabled = false;
@@ -151,7 +207,8 @@
       pairingInput.value = '';
       mode = 'demo';
       updateControls();
-      message('Desconectado. Exibindo dados fictícios de demonstração.');
+      message('Desconectado. Dados fictícios de demonstração.', 'info');
+      closeMenu();
       window.NetWatchChangeSource?.();
     });
   });

@@ -12,7 +12,7 @@ O site do GitHub Pages abre **sem instalar nada**, mas começa obrigatoriamente 
 
 ```text
 https://SEU_USUARIO.github.io/netwatch/  ->  preview estático (somente demo)
-     [Conectar meu computador]           ->  permissão + código de pareamento
+     [Fonte → Conectar meu computador]   ->  permissão + código de pareamento
 http://127.0.0.1:9876                   ->  coletor Linux local e protegido
 ```
 
