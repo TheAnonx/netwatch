@@ -1,0 +1,6 @@
+{
+  "kind": "app",
+  "style": "data-terminal",
+  "theme": "dark",
+  "shell": "full-page"
+}

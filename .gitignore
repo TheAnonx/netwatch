@@ -1,0 +1,29 @@
+# Runtime state and process/network telemetry (private, not source)
+.netwatch.pid
+.netwatch.log
+.netwatch-pages-token
+.netwatch-pid-*
+.pairing-*
+*.log
+.dns_cache.json
+.geo_cache.json
+.backups/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Python/build/tooling output
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+dist/
+.cache/
+.DS_Store
+*.swp
+*.tmp

@@ -1,0 +1,65 @@
+name: NetWatch — tests and GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: netwatch-pages
+  cancel-in-progress: true
+
+jobs:
+  pages:
+    name: Validate and deploy static preview
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Node.js 24 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Syntax and regression tests
+        run: |
+          python -B -m unittest discover -s tests -v
+          node --check web/app.js
+          node --check web/pages.js
+          node --check web/demo.js
+          node --check web/glass.js
+
+      - name: Assemble public artifact (allowlisted assets only)
+        run: |
+          python -B scripts/build_pages.py
+          python -B scripts/check_release.py
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload public static files
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/pages
+
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetWatch — Monitor de Conexões de Rede</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="vendor/liquid-glass/liquid-glass.css">
+  <link rel="stylesheet" href="style.css?v=zoom-reflow-20261106">
+</head>
+<body>
+  <div class="optical-environment" aria-hidden="true">
+    <span class="optical-arc optical-arc-a"></span>
+    <span class="optical-arc optical-arc-b"></span>
+    <span class="optical-arc optical-arc-c"></span>
+  </div>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="title-wrap">
+        <h1 class="app-title">NetWatch</h1>
+        <p class="app-subtitle">Telemetria de sockets e processos de rede</p>
+      </div>
+    </div>
+
+    <!-- Bandwidth Gauges & Interfaces in Header -->
+    <div class="header-center">
+      <div class="bandwidth-meter" title="Taxa agregada de download">
+        <span class="bw-dir">RX</span>
+        <span class="bw-val" id="bw-down-val">0 KB/s</span>
+      </div>
+      <div class="bandwidth-meter" title="Taxa agregada de upload">
+        <span class="bw-dir">TX</span>
+        <span class="bw-val" id="bw-up-val">0 KB/s</span>
+      </div>
+      <div class="header-ifaces-wrap" id="interfaces-bar">
+        <!-- Injected dynamically via JS -->
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button id="btn-freeze" class="btn-toggle" title="Congelar visualização para análise">
+        <span class="toggle-text">Congelar</span>
+      </button>
+
+      <div class="live-status" id="live-indicator" role="status" aria-live="polite">
+        <span class="live-dot"></span>
+        <span class="live-text" id="live-text">Carregando</span>
+      </div>
+
+      <div class="controls-group">
+        <label for="refresh-interval" class="visually-hidden">Intervalo de atualização</label>
+        <select id="refresh-interval" class="custom-select" title="Intervalo de atualização">
+          <option value="1000">1s</option>
+          <option value="2000" selected>2s</option>
+          <option value="5000">5s</option>
+          <option value="0">Pausar</option>
+        </select>
+        <button id="btn-refresh" class="btn-refresh" title="Atualizar agora">
+          Atualizar
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-container">
+    <!-- Divided KPI Strip (Taste Skill: Single container split by hairlines, label over value, no icons) -->
+    <section class="kpis-strip">
+      <div class="kpi-cell" data-filter="all">
+        <span class="kpi-label">Total de sockets</span>
+        <span class="kpi-val" id="kpi-total">0</span>
+        <span class="kpi-sub" id="kpi-proto-breakdown">Aguardando coleta</span>
+      </div>
+      <div class="kpi-cell" data-filter="OUTBOUND">
+        <span class="kpi-label">Saída estimada</span>
+        <span class="kpi-val" id="kpi-outbound">0</span>
+        <span class="kpi-sub">Direção estimada</span>
+      </div>
+      <div class="kpi-cell" data-filter="INBOUND">
+        <span class="kpi-label">Entrada estimada</span>
+        <span class="kpi-val" id="kpi-inbound">0</span>
+        <span class="kpi-sub">Direção inferida</span>
+      </div>
+      <div class="kpi-cell" data-filter="LISTEN">
+        <span class="kpi-label">Em escuta</span>
+        <span class="kpi-val" id="kpi-listen">0</span>
+        <span class="kpi-sub">Portas TCP em LISTEN</span>
+      </div>
+      <div class="kpi-cell" data-filter="LOCAL">
+        <span class="kpi-label">Local / IPC</span>
+        <span class="kpi-val" id="kpi-local">0</span>
+        <span class="kpi-sub">Sockets Unix e IP local</span>
+      </div>
+      <div class="kpi-cell" data-filter="procs">
+        <span class="kpi-label">Processos identificados</span>
+        <span class="kpi-val" id="kpi-processes">0</span>
+        <span class="kpi-sub">PIDs confirmados</span>
+      </div>
+    </section>
+
+    <!-- Visual Insights Panel & Canvas Timeline -->
+    <section class="insights-grid">
+      <!-- Network Activity Timeline (Canvas Chart) -->
+      <div class="panel-box chart-box">
+        <div class="insight-heading">
+          <h2 class="panel-title">Histórico de atividade recente</h2>
+          <span class="panel-meta" id="chart-latest-status">Últimos 60s</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="timeline-canvas" height="110"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span class="chart-legend-item"><span class="legend-color legend-blue"></span> Sockets IP</span>
+          <span class="chart-legend-item"><span class="legend-color legend-green"></span> Download (Kbps)</span>
+          <span class="chart-legend-item"><span class="legend-color legend-red"></span> Upload (Kbps)</span>
+        </div>
+      </div>
+
+      <!-- Top Processes -->
+      <div class="panel-box">
+        <div class="insight-heading">
+          <h2 class="panel-title">Aplicações com sockets</h2>
+          <span class="panel-meta">Por sockets</span>
+        </div>
+        <div class="insight-bars" id="top-processes-list">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+      <!-- Top Countries & Orgs -->
+      <div class="panel-box">
+        <div class="insight-heading">
+          <h2 class="panel-title">Destinos remotos</h2>
+          <span class="panel-meta">GeoIP e ASN</span>
+        </div>
+        <div class="insight-bars" id="top-countries-list">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Table Section -->
+    <section class="table-section">
+      <!-- Quick Filter Chips Bar (Without emojis) -->
+      <div class="chips-bar">
+        <span class="chips-label">Filtros:</span>
+        <button class="filter-chip active" data-chip="ALL">Todos os sockets</button>
+        <button class="filter-chip" data-chip="web">Web (80, 443)</button>
+        <button class="filter-chip" data-chip="ssh">SSH (22)</button>
+        <button class="filter-chip" data-chip="dns">DNS (53)</button>
+        <button class="filter-chip" data-chip="dev">Dev (3000, 5173, 8080)</button>
+        <button class="filter-chip" data-chip="vpn">VPN e túneis</button>
+        <button class="filter-chip" data-chip="public">Rede pública</button>
+      </div>
+
+      <!-- Filter Toolbar -->
+      <div class="toolbar">
+        <div class="direction-tabs" id="direction-tabs">
+          <button class="tab-btn active" data-dir="ALL">
+            Todas <span class="tab-count" id="count-all">0</span>
+          </button>
+          <button class="tab-btn tab-outbound" data-dir="OUTBOUND">
+            Saída <span class="tab-count" id="count-outbound">0</span>
+          </button>
+          <button class="tab-btn tab-inbound" data-dir="INBOUND">
+            Entrada <span class="tab-count" id="count-inbound">0</span>
+          </button>
+          <button class="tab-btn tab-listen" data-dir="LISTEN">
+            Em escuta <span class="tab-count" id="count-listen">0</span>
+          </button>
+          <button class="tab-btn tab-local" data-dir="LOCAL">
+            Local <span class="tab-count" id="count-local">0</span>
+          </button>
+          <button class="tab-btn" data-dir="BOUND" hidden>UDP vinculado <span class="tab-count" id="count-bound">0</span></button>
+          <button class="tab-btn" data-dir="RAW" hidden>Raw <span class="tab-count" id="count-raw">0</span></button>
+          <button class="tab-btn" data-dir="UNKNOWN" hidden>Não classificado <span class="tab-count" id="count-unknown">0</span></button>
+        </div>
+
+        <div class="filter-controls">
+          <!-- Search Input -->
+          <div class="search-wrap">
+            <input type="text" id="search-input" aria-label="Buscar conexões" placeholder="Buscar processo, PID, IP, porta, país..." autocomplete="off">
+            <button id="search-clear" aria-label="Limpar busca" class="btn-clear hidden">&times;</button>
+          </div>
+
+          <!-- Protocol Filter -->
+          <select id="filter-proto" class="custom-select-small">
+            <option value="ALL">Protocolo: Todos</option>
+
+          </select>
+
+          <!-- State Filter -->
+          <select id="filter-state" class="custom-select-small">
+            <option value="ALL">Estado: Todos</option>
+
+          </select>
+
+          <!-- Export Buttons -->
+          <div class="export-group">
+            <button class="btn-export" id="btn-export-csv" title="Exportar tabela filtrada para CSV">
+              CSV
+            </button>
+            <button class="btn-export" id="btn-export-json" title="Exportar snapshot atual para JSON">
+              JSON
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connections Table with Clickable Sort Headers -->
+      <div class="table-container">
+        <table class="data-table" id="connections-table">
+          <thead>
+            <tr>
+              <th class="col-dir sortable" data-sort="direction">
+                Direção <span class="sort-indicator" id="sort-direction">↕</span>
+              </th>
+              <th class="col-proc sortable" data-sort="process_name">
+                Processo e PID <span class="sort-indicator" id="sort-process_name">↕</span>
+              </th>
+              <th class="col-proto sortable" data-sort="proto">
+                Protocolo e estado <span class="sort-indicator" id="sort-proto">↕</span>
+              </th>
+              <th class="col-local sortable" data-sort="local_port">
+                Local (origem) <span class="sort-indicator" id="sort-local_port">↕</span>
+              </th>
+              <th class="col-peer sortable" data-sort="peer_ip">
+                Remoto (destino) <span class="sort-indicator" id="sort-peer_ip">↕</span>
+              </th>
+              <th class="col-geo sortable" data-sort="country">
+                Localização e provedor <span class="sort-indicator" id="sort-country">↕</span>
+              </th>
+              <th class="col-queue sortable" data-sort="queue">
+                Recv-Q / Send-Q <span class="sort-indicator" id="sort-queue">↕</span>
+              </th>
+              <th class="col-actions">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="connections-tbody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+        <div id="empty-state" class="empty-state hidden">
+          <p>Nenhuma conexão encontrada com os filtros selecionados.</p>
+        </div>
+      </div>
+
+      <!-- Table Footer with Pagination & Controls -->
+      <div class="table-footer">
+        <div class="footer-left">
+          <span id="table-showing-text">Exibindo 0 conexões</span>
+          <div class="page-size-wrap">
+            <label for="page-size-select">Exibir:</label>
+            <select id="page-size-select" class="custom-select-small">
+              <option value="25" selected>25 itens</option>
+              <option value="50">50 itens</option>
+              <option value="100">100 itens</option>
+              <option value="0">Todos</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Pagination Nav -->
+        <div class="pagination-nav" id="pagination-controls">
+          <button class="btn-page" id="btn-page-prev">&laquo; Anterior</button>
+          <span class="page-current" id="page-current-info">Pág. 1 de 1</span>
+          <button class="btn-page" id="btn-page-next">Próxima &raquo;</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Inspector Drawer / Modal -->
+  <div class="drawer-backdrop" id="drawer-backdrop">
+    <div class="drawer" id="inspector-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <span class="pill" id="modal-dir-badge">Saída</span>
+          <h2 id="modal-title">Detalhes da conexão</h2>
+        </div>
+        <button class="btn-close" id="btn-close-drawer" aria-label="Fechar detalhes">&times;</button>
+      </div>
+
+      <div class="drawer-body" id="modal-content">
+        <!-- Process Section -->
+        <section class="detail-section">
+          <h3 class="detail-heading">Processo e aplicação</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-key">Processo:</span>
+              <span class="detail-val" id="modal-proc-name">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">PID:</span>
+              <span class="detail-val" id="modal-proc-pid">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Usuário:</span>
+              <span class="detail-val" id="modal-proc-user">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Categoria:</span>
+              <span class="detail-val" id="modal-proc-cat">--</span>
+            </div>
+          </div>
+          <div class="cmdline-field">
+            <span class="detail-key">Linha de comando:</span>
+            <pre class="code-box"><code id="modal-proc-cmd">--</code></pre>
+          </div>
+          <div class="cmdline-field" id="exe-wrap">
+            <span class="detail-key">Executável binário:</span>
+            <pre class="code-box"><code id="modal-proc-exe">--</code></pre>
+          </div>
+        </section>
+
+        <!-- Connection Details -->
+        <section class="detail-section">
+          <h3 class="detail-heading">Detalhes do socket</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-key">Protocolo:</span>
+              <span class="detail-val" id="modal-proto">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Estado:</span>
+              <span class="detail-val" id="modal-state">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Endereço local:</span>
+              <span class="detail-val" id="modal-local-addr">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Porta local:</span>
+              <span class="detail-val" id="modal-local-port">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Endereço remoto:</span>
+              <span class="detail-val" id="modal-peer-addr">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Porta remota:</span>
+              <span class="detail-val" id="modal-peer-port">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">DNS reverso:</span>
+              <span class="detail-val" id="modal-hostname">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Interface:</span>
+              <span class="detail-val" id="modal-iface">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Fila recepção (Recv-Q):</span>
+              <span class="detail-val" id="modal-recvq">0 B</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Fila envio (Send-Q):</span>
+              <span class="detail-val" id="modal-sendq">0 B</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Geo & ISP Info -->
+        <section class="detail-section" id="geo-card">
+          <h3 class="detail-heading">Geolocalização e ASN</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-key">País:</span>
+              <span class="detail-val" id="modal-geo-country">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Cidade:</span>
+              <span class="detail-val" id="modal-geo-city">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Organização:</span>
+              <span class="detail-val" id="modal-geo-org">--</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Provedor:</span>
+              <span class="detail-val" id="modal-geo-isp">--</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Direction explanation callout -->
+        <div class="direction-explainer" id="modal-dir-explainer">
+          <!-- Text explaining exactly what this connection means -->
+        </div>
+
+        <!-- Actions in Drawer -->
+        <div class="drawer-actions">
+          <button class="btn btn-secondary" id="btn-copy-info">
+            Copiar detalhes
+          </button>
+          <button class="btn btn-danger" id="btn-kill-proc">
+            Finalizar processo (PID <span id="btn-kill-pid">--</span>)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kill Confirmation Modal -->
+  <div class="modal-backdrop" id="kill-modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Encerrar processo</h3>
+        <button class="btn-close" id="btn-kill-cancel-x" aria-label="Fechar confirmação">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Tem certeza que deseja encerrar o seguinte processo?</p>
+        <div class="kill-target-summary">
+          <div class="proc-name" id="kill-modal-name">--</div>
+          <div class="proc-pid">PID: <span id="kill-modal-pid">--</span></div>
+        </div>
+        <div class="checkbox-line">
+          <input type="checkbox" id="chk-force-kill">
+          <label for="chk-force-kill">Forçar encerramento imediato (SIGKILL -9)</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-kill-cancel">Cancelar</button>
+        <button class="btn btn-danger" id="btn-kill-confirm">Encerrar processo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="app.js?v=readability-20261106"></script>
+  <script type="module" src="glass.js?v=optics-budget-20261106"></script>
+</body>
+</html>
