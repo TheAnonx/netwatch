@@ -1,111 +1,148 @@
-# NetWatch — Monitor de Conexões de Rede em Tempo Real
+# NetWatch
 
-Dashboard local de inventário de sockets Linux TCP, UDP, RAW e Unix. Exibe o que as ferramentas do usuário conseguem observar; não é captura de pacotes nem garante visibilidade de outros namespaces ou processos sem permissão.
+**Monitore a atividade de rede do seu computador Linux em tempo real, diretamente no navegador.**
 
-**Plataforma de coleta:** Linux. **Interface:** qualquer navegador moderno; GitHub Pages funciona como demonstração estática e, opcionalmente, visualizador do coletor local.
+O NetWatch é um painel local para investigar **quais processos usam a rede, com quais endereços e portas se comunicam e quais sockets estão abertos**. Ele reúne taxas de transferência, histórico recente e uma tabela pesquisável em uma única interface.
 
----
+Foi criado para quem precisa **entender a atividade de rede de uma máquina Linux**, sem depender de serviços de monitoramento hospedados na internet.
 
-## Prévia no GitHub Pages
+![Prévia do dashboard NetWatch exibindo dados fictícios](docs/assets/netwatch-demo.png)
 
-O site do GitHub Pages abre **sem instalar nada**, mas começa obrigatoriamente com **dados fictícios** para demonstração. Para ver o tráfego da própria máquina, o visitante instala e executa o coletor Linux e faz um pareamento explícito via código local. O navegador pode solicitar permissão de acesso ao loopback (Chrome Local Network Access); nenhuma coleta real acontece antes do clique.
+> **Imagem de demonstração:** os processos, endereços IP e números da captura são fictícios. A versão no GitHub Pages também começa nesse modo; nenhuma informação real da máquina é coletada apenas por abrir a página.
+
+## O que você consegue fazer
+
+- **Acompanhar a rede:** ver taxas de recebimento (RX) e envio (TX), interfaces disponíveis e um histórico de atividade dos últimos 60 segundos.
+- **Investigar sockets e processos:** listar TCP, UDP, raw e Unix; consultar PID, estado, endereço local e destino remoto quando essas informações estiverem disponíveis.
+- **Encontrar conexões específicas:** pesquisar por processo, PID, IP ou porta; filtrar por protocolo, estado, direção e categorias presentes na máquina.
+- **Inspecionar detalhes:** abrir um painel com informações do socket e, quando disponível e habilitado, DNS reverso e geolocalização.
+- **Exportar e analisar:** salvar resultados em CSV ou JSON, ordenar a tabela e congelar a visualização para inspeção.
+- **Gerenciar processos localmente:** solicitar SIGTERM/SIGKILL com verificações de autorização e identidade do PID, **somente na interface local**.
+
+A interface é **adaptativa**: filtros e painéis opcionais sem dados não são exibidos; a coleta distingue dados vazios de fontes indisponíveis.
+
+### O que o NetWatch não faz
+
+O NetWatch **não captura nem lê o conteúdo dos pacotes**, não é um firewall e não é um IDS/IPS. Ele inventaria sockets e metadados observáveis pelo sistema; algumas direções de conexão são **inferências**, não fatos capturados no tráfego. A visibilidade depende das permissões do usuário, dos namespaces Linux e das ferramentas disponíveis.
+
+## Experimente do seu jeito
+
+| Modo | O que aparece | Precisa instalar o coletor? |
+| --- | --- | --- |
+| **Prévia no GitHub Pages** | Dashboard interativo com **dados fictícios** | Não |
+| **NetWatch local** | Sockets e métricas reais do computador Linux, com gerenciamento local protegido | Sim |
+| **GitHub Pages conectado** | Dados reais do coletor da própria máquina, em modo **somente leitura** | Sim |
+
+O GitHub Pages hospeda apenas a interface HTML/CSS/JavaScript. **O GitHub não executa Python, não lê a rede do visitante e não recebe automaticamente os dados da máquina.**
+
+### 1. Executar o NetWatch localmente
+
+**Requisitos:** Linux com `/proc`, Python 3, `ss` (iproute2), `lsof` e navegador moderno. A versão validada no desenvolvimento usa Python **3.14.9**. Node.js é necessário apenas para testes e desenvolvimento, não para executar o monitor.
+
+Após clonar o repositório:
+
+```bash
+cd netwatch
+bash ./start.sh
+```
+
+Abra **http://127.0.0.1:9876** no próprio computador. O coletor escuta somente em `127.0.0.1`, não na rede local externa.
+
+Para conferir o serviço ou encerrá-lo:
+
+```bash
+python3 -B scripts/service_ctl.py status
+bash ./stop.sh
+```
+
+Instalação de dependências por distribuição, permissões e diagnóstico: **[Guia de instalação](docs/INSTALLATION.md)**.
+
+### 2. Abrir a prévia pelo GitHub Pages
+
+Depois que o mantenedor publicar o site, a prévia estará em um endereço como:
 
 ```text
-https://SEU_USUARIO.github.io/netwatch/  ->  preview estático (somente demo)
-     [Fonte → Conectar meu computador]   ->  permissão + código de pareamento
-http://127.0.0.1:9876                   ->  coletor Linux local e protegido
+https://SEU_USUARIO.github.io/netwatch/
 ```
 
-O Pages **não executa Python** e não hospeda o coletor. Mesmo conectado, o Pages é **somente leitura** e a API oculta linhas de comando, usuários e caminhos de executáveis. O controle de encerramento de processos continua exclusivo de `127.0.0.1:9876`.
+Esse endereço é **ilustrativo até a publicação**. Você pode explorar os gráficos, filtros e o inspetor sem instalar nada: todos os dados são simulados e identificados como tal.
 
-- [Instalação e pareamento](docs/INSTALLATION.md)
-- [Arquitetura e API](docs/ARCHITECTURE.md)
-- [Preparação e publicação no GitHub](docs/RELEASE.md) — publicar a branch isolada `public-release`, **não** a branch de desenvolvimento `main`.
-- [Diagnóstico](docs/TROUBLESHOOTING.md)
-- [Política de segurança](SECURITY.md)
-- [Contribuições](CONTRIBUTING.md)
+### 3. Conectar a página à sua própria máquina
 
-A versão hospedada no GitHub só estará disponível após configurar **Settings → Pages → GitHub Actions** e executar o workflow. A URL acima é ilustrativa até escolher a conta e o repositório.
-
-## Inicialização
+Para trocar os dados fictícios por dados reais, inicie o coletor Linux autorizando **a origem HTTPS exata** do GitHub Pages:
 
 ```bash
-cd netwatch  # pasta clonada do repositório
-./start.sh
+bash ./stop.sh
+NETWATCH_PAGES_ORIGIN=https://SEU_USUARIO.github.io bash ./start.sh
+cat .netwatch-pages-token
 ```
 
-Dashboard disponível em: **http://localhost:9876**
+No site, clique em **Fonte → Conectar meu computador**, cole o código local e aceite a permissão de rede local do navegador, caso apareça. O botão **Fonte** abre um menu discreto que fecha por novo clique, clique externo ou **Esc**.
 
-Encerrar o serviço:
+- A conexão utiliza o loopback `127.0.0.1` **na máquina do visitante**, com autenticação por token e origem autorizada.
+- O pareamento é **somente leitura**: o site não consegue usar a API de encerramento de processos.
+- Linhas de comando, caminhos de executáveis, usuários e hostnames são omitidos na resposta destinada ao site público. **IPs, PIDs e nomes de processos ainda são dados sensíveis**.
+- O código de pareamento é renovado ao reiniciar o coletor. **Não o publique em issues, capturas de tela ou commits.**
+
+Veja as instruções completas, limitações de navegadores e como desconectar em **[Instalação e pareamento](docs/INSTALLATION.md)**.
+
+## Privacidade e segurança
+
+O NetWatch é **local por padrão**. A API fica restrita ao loopback e a integração com GitHub Pages precisa ser ativada explicitamente. O GeoIP externo é opcional e fica desativado por padrão; ao ativá-lo, IPs públicos poderão ser consultados no serviço `ipwho.is`.
+
+O coletor não requer execução como root. O encerramento de processos na interface local exige verificação de origem, token CSRF e identidade do processo. **Não exponha a porta 9876 na internet.**
+
+Consulte **[SECURITY.md](SECURITY.md)** para o modelo de ameaças, limitações e recomendações de operação.
+
+## Como funciona
+
+```text
+Linux (ss, lsof, /proc, /proc/net/dev)
+                 |
+                 v
+        Coletor Python local
+         127.0.0.1:9876
+                 |
+         +-------+--------+
+         |                |
+         v                v
+   Dashboard local   GitHub Pages HTTPS
+   (controle local)  (pareamento opcional,
+                      somente leitura)
+
+Sem coletor conectado ao Pages: demonstração fictícia.
+```
+
+A coleta utiliza `ss` para sockets TCP/UDP, raw e Unix, com informações adicionais de `/proc` e `lsof` quando acessíveis. As taxas RX/TX são obtidas de `/proc/net/dev`; um worker independente dos visitantes atualiza o histórico. Se alguma fonte falhar, a API informa a condição em vez de apresentar ausência de dados como se fosse zero.
+
+A interface usa HTML, CSS e JavaScript nativos, com efeitos ópticos leves baseados no projeto MIT [liquid-glass-web](https://github.com/Meapri/liquid-glass-web), incluído em `web/vendor/liquid-glass/` junto com sua licença.
+
+## Documentação
+
+| Guia | Conteúdo |
+| --- | --- |
+| [Instalação](docs/INSTALLATION.md) | Dependências, execução local, pareamento e GeoIP opcional |
+| [Arquitetura](docs/ARCHITECTURE.md) | Coleta, API, segurança e arquitetura dos modos |
+| [Publicação](docs/RELEASE.md) | GitHub Pages, workflow, branch pública e rollback |
+| [Diagnóstico](docs/TROUBLESHOOTING.md) | Problemas de execução, coleta, CORS e permissões |
+| [Segurança](SECURITY.md) | Superfície de ataque, medidas e riscos residuais |
+| [Contribuição](CONTRIBUTING.md) | Como desenvolver e enviar alterações |
+
+### Desenvolvimento e testes
+
+Para executar a suíte (Node.js é usado nos testes JavaScript):
+
 ```bash
-./stop.sh
+python3 -B -m unittest discover -s tests -v
+node --check web/app.js
+node --check web/pages.js
+node --check web/demo.js
+python3 -B scripts/build_pages.py
+python3 -B scripts/check_release.py
 ```
 
----
+A prévia estática é gerada em `dist/pages/`, sem incluir código Python do coletor, caches ou tokens. **O repositório destinado ao GitHub deve ser publicado a partir da branch `public-release`**, conforme o guia de release, para preservar o histórico privado de desenvolvimento.
 
-## Funcionalidades
+## Licença
 
-### Telemetria em tempo real
-- **Taxas RX/TX** medidas em `/proc/net/dev`: soma interfaces físicas para evitar duplicar tráfego de VPN/bridge; quando só existem interfaces virtuais, o retorno declara `virtual_fallback`.
-- **Histórico de 60 segundos reais** amostrado a cada 2 s por worker independente dos navegadores, mostrando sockets IP e taxas RX/TX. Amostras inválidas são omitidas.
-- **Inventário TCP/UDP, RAW e Unix** por `ss -tupnaH`, `ss -awpnH` e `ss -xapnH`. PIDs vêm de `ss` e do fallback verificável de `lsof`; quando indisponíveis, aparecem como não identificados, nunca atribuídos por nome de porta. Cobertura e erros são informados por família.
-
-### Classificação de conexões
-
-| Categoria | Significado |
-|:---|:---|
-| Saída (Outbound) | Direção inferida pelo estado e pelos endpoints; não é um rastreamento da origem de pacotes |
-| Entrada (Inbound) | Provável conexão recebida em uma porta TCP em escuta |
-| Em escuta (Listen) | Apenas sockets TCP em LISTEN |
-| Local (Loopback/IPC) | Sockets Unix e conexões IP de loopback |
-| UDP vinculado (Bound) | Socket UDP sem destino remoto confirmado; não é TCP em escuta |
-| Raw | Sockets raw disponíveis ao usuário atual |
-| Não classificado | Direção que não pode ser determinada com segurança |
-
-### Filtros e organização
-- Chips de filtro rápido Web, SSH, DNS, Dev, VPN e Rede Pública, exibidos somente quando há registros correspondentes.
-- Abas de direção com contadores em tempo real
-- Busca textual por processo, PID, IP, porta, país ou provedor
-- Filtros de protocolo (TCP/UDP/RAW/UNIX) e estado, criados a partir dos valores presentes na coleta. Abas sem registros são ocultadas.
-- Ordenação interativa por qualquer coluna
-- Paginação (25, 50, 100, todos)
-- Modo congelamento para inspeção sem atualização
-- Exportação CSV e JSON
-
-### Inspeção detalhada
-- Painel lateral (drawer) com PID, usuário, linha de comando, executável
-- DNS reverso com cache local e GeoIP HTTPS opcional via ipwho.is (`NETWATCH_GEO_PROVIDER=ipwhois`). Sem opt-in não são enviados IPs a serviços externos de GeoIP; dados já presentes no cache continuam disponíveis.
-- Identificação de ISP, organização e ASN
-- Encerramento de processo (SIGTERM / SIGKILL) somente na interface local, com token de sessão, validação same-origin, mesma UID, PID/start_ticks e pidfd quando disponível.
-
----
-
-## Design
-
-O dashboard usa um **motor óptico Liquid Glass para navegadores**, não somente blur. O código MIT do [liquid-glass-web](https://github.com/Meapri/liquid-glass-web) está fixado no commit `1613f8311dbc31bc2331afcfe51a143c56dd6308` e distribuído localmente em `web/vendor/liquid-glass/`. Ele produz refração com `feDisplacementMap` no `backdrop-filter` do Chromium, dispersão cromática RGB, reflexos especulares ligados à geometria e iluminação das bordas conforme a posição do ponteiro. Não depende do `expo-glass-effect` (API específica de iOS).
-
-- **Tipografia:** Public Sans com `tabular-nums`.
-- **Paleta:** fundo azul-marinho escuro; painéis transparentes com reflexos frios; azul para ações; verde/vermelho/amarelo para estados.
-- **Superfícies:** cabeçalho flutuante, KPIs, insights, tabela, drawer e modais com acabamento de vidro.
-- **Compatibilidade:** Chrome/Chromium oferece refração real do conteúdo atrás dos controles. Browsers sem o compositor SVG-in-backdrop-filter usam a implementação alternativa com blur e reflexos, sem prometer refração idêntica. `prefers-reduced-transparency` reduz os efeitos automaticamente.
-- **Performance:** a release mantém **1 superfície refrativa** no cabeçalho, com os demais componentes usando CSS leve. A coleta de rede é separada do motor óptico e o histórico é atualizado por um worker independente dos clientes HTTP.
-- **Qualidade óptica:** a release fixa o modo `Leve` (1 superfície refrativa). Não existe seletor; `prefers-reduced-transparency` desativa o efeito por acessibilidade.
-- **Tech Stack:** Python 3 (stdlib) para a API; HTML, CSS, JavaScript ESM e SVG no navegador; motor `liquid-glass-web` 0.1.0 compilado com Vite 6.4.2 (somente build). Dependências de navegador são self-hosted, sem CDN de JavaScript. Isto simula o comportamento óptico do material, sem reutilizar código do compositor proprietário da Apple.
-- **Versionamento:** Git na branch `main`, com caches DNS/GeoIP, arquivos `.netwatch.*`, backups e credenciais ignorados via `.gitignore`. Consulte `web/vendor/liquid-glass/README.md` para licença, fonte exata e compilação.
-
-
----
-
-## Arquitetura
-
-```
-server.py             API HTTP local e amostragem de banda (stdlib Python)
-telemetry_collector.py Inventário de sockets com fontes e erros explícitos
-web/index.html     Estrutura HTML semântica
-web/style.css      Design system com variáveis CSS
-web/app.js         Lógica frontend, filtros, canvas, drawer
-start.sh           Launcher seguro com validação de PID e start_ticks
-stop.sh            Encerramento seguro só do processo NetWatch identificado
-```
-
-Backend usa `http.server` com `ThreadingMixIn`, limitado a `127.0.0.1:9876` e sem CORS permissivo. Caches DNS/GeoIP são persistidos por escrita atômica. GeoIP público é desativado por padrão; com `NETWATCH_GEO_PROVIDER=ipwhois`, consulta HTTPS com intervalo mínimo e retry após falha (a API gratuita possui limites e termos próprios). Falha de fonte não é apresentada como zero: `/api/connections` retorna `status`, `sources` e `errors` (503 se todas as famílias falharem).
+Código do NetWatch sob **[MIT](LICENSE)**. As licenças e atribuições de componentes de terceiros são preservadas nos respectivos diretórios `vendor`.
